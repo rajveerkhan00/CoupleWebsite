@@ -53,7 +53,7 @@ const App = () => {
       
       // Wait a moment for the user to see the success message
       setTimeout(() => {
-        navigate('/home');
+        navigate('/Kinza/Admin');
       }, 2000);
       
     } catch (error) {

@@ -3,6 +3,7 @@ import {BrowserRouter as Router,Routes,Route} from "react-router-dom";
 
 import Home from '../pages/Home';
 import LoginK from '../pages/LoginK';
+import Admin from '../pages/Admin';
 
 
 
@@ -17,6 +18,7 @@ export default function Menuroutes() {
           {/*  */}
           <Route path="/" element={<Home />} />
           <Route path="/Kinza/Login" element={<LoginK />} />
+          <Route path="/Kinza/Admin" element={<Admin />} />
 
 
           {/* 
