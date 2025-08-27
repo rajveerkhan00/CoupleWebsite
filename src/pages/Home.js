@@ -6,7 +6,8 @@ import { db } from '../firebase';
 import { uploadImageToCloudinary } from '../cloudinary';
 import { collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import Event from '../components/Events';
-import { LogIn } from "lucide-react"; // you can replace with Heroicons if you like
+import { LogIn } from "lucide-react"; 
+import "./Home.css";   // 👈 Import CSS file
 
 const App = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -442,6 +443,7 @@ useEffect(() => {
   const futurePlans = websiteData.futurePlans?.length > 0 ? websiteData.futurePlans : initialFuturePlans;
 
   return (
+    <><Event/>    
     <div className="font-sans text-gray-800">
       <ToastContainer position="bottom-right" autoClose={3000} />
       
@@ -1442,24 +1444,24 @@ useEffect(() => {
           </section>
 
           {/* Messages Section */}
-          <section id="messages" className="messages-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
-  <div className="messages-container max-w-4xl mx-auto px-4 md:px-6">
-    <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
+         <section className="py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
+  <div className="max-w-4xl mx-auto px-4 md:px-6">
+    <h2 className="text-2xl sm:text-3xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14">
       Messages Between Kinza & Zain
     </h2>
 
-    <div className="chat-container bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden floating-card">
+    <div className="bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden">
       {/* Chat Header */}
-      <div className="chat-header bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
+      <div className="bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
         <div className="flex items-center">
           <div className="relative">
-            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3 floating-avatar">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3">
               K
             </div>
             <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
           </div>
           <div className="relative ml-1 md:ml-2">
-            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl floating-avatar">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl">
               Z
             </div>
             <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
@@ -1470,12 +1472,12 @@ useEffect(() => {
           </div>
         </div>
         <div className="flex space-x-1 md:space-x-2">
-          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
             </svg>
           </button>
-          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -1484,16 +1486,16 @@ useEffect(() => {
       </div>
 
       {/* Messages Area */}
-      <div className="messages-area p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
+      <div className="p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
         {websiteData.messages.map((message) => (
           <div
             key={message.id}
-            className={`message flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
+            className={`flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`message-content max-w-xs ${
+              className={`max-w-xs ${
                 message.sender === 'zain' ? 'bg-indigo-100' : 'bg-rose-100'
-              } rounded-xl md:rounded-2xl p-2 md:p-3 relative floating-message`}
+              } rounded-xl md:rounded-2xl p-2 md:p-3 relative`}
               style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
             >
               {/* Tiny sender badge (K or Z) */}
@@ -1520,7 +1522,7 @@ useEffect(() => {
                     );
                     handleTextChange('messages', '', newMessages);
                   }}
-                  className="w-full bg-transparent border-b border-dashed border-gray-400 floating-input text-sm md:text-base focus:border-gray-500 outline-none"
+                  className="w-full bg-transparent border-b border-dashed border-gray-400 text-sm md:text-base focus:border-gray-500 outline-none"
                 />
               ) : (
                 <p className="text-gray-800 text-sm md:text-base">{message.text}</p>
@@ -1539,14 +1541,14 @@ useEffect(() => {
       </div>
 
       {/* Message Input */}
-      <div className="message-input-container p-3 md:p-4 border-t border-rose-100 bg-white">
+      <div className="p-3 md:p-4 border-t border-rose-100 bg-white">
         <form onSubmit={handleSendMessage} className="flex items-center">
-          <div className="sender-toggle flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
+          <div className="flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
             <button
               type="button"
               className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
                 currentSender === 'zain' ? 'bg-indigo-500 text-white' : 'text-indigo-500'
-              } transition-colors duration-200 floating-button`}
+              }`}
               onClick={() => setCurrentSender('zain')}
             >
               Zain
@@ -1555,7 +1557,7 @@ useEffect(() => {
               type="button"
               className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
                 currentSender === 'kinza' ? 'bg-rose-500 text-white' : 'text-rose-500'
-              } transition-colors duration-200 floating-button`}
+              }`}
               onClick={() => setCurrentSender('kinza')}
             >
               Kinza
@@ -1567,12 +1569,12 @@ useEffect(() => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent floating-input text-sm md:text-base"
+            className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-sm md:text-base"
           />
 
           <button
             type="submit"
-            className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300 floating-button"
+            className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300"
           >
             <PaperAirplaneIcon className="w-4 h-4 md:w-5 md:h-5" />
           </button>
@@ -1616,6 +1618,8 @@ useEffect(() => {
             </div>
           )}
         </div>
+        </>
+
       );
     };
 

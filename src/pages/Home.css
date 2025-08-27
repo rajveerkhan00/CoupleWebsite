@@ -360,20 +360,7 @@ body {
 }
 
 /* Animation for new messages */
-@keyframes messageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-.message {
-  animation: messageSlideIn 0.3s ease-out;
-}
 
 /* Responsive adjustments for messages */
 @media (max-width: 640px) {
