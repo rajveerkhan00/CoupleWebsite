@@ -510,7 +510,7 @@ useEffect(() => {
     {/* Navigation Links */}
     <div className="navigation-links flex flex-wrap items-center justify-center mt-3 md:mt-0">
       <a
-        href="/home"
+        href="/"
         className="flex items-center gap-1 text-red-600 sm:gap-2 hover:text-rose-600 transition-all duration-300 font-medium text-xs sm:text-sm md:text-base"
       >
         <LogIn className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
