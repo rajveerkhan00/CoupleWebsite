@@ -442,111 +442,44 @@ useEffect(() => {
   const futurePlans = websiteData.futurePlans?.length > 0 ? websiteData.futurePlans : initialFuturePlans;
 
   return (
-
-    <>
-    
-   
     <div className="font-sans text-gray-800">
-      <Event />
       <ToastContainer position="bottom-right" autoClose={3000} />
       
 
-    <>
-  {/* Floating Animations - Hearts & Messages (One-Way Upward, No Loop) */}
-  <style jsx>{`
-    .floating-animations {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      overflow: hidden;
-      z-index: 10;
-    }
+      {/* Floating Hearts Animation */}
+      {/* <div className="floating-hearts">
+        {[...Array(15)].map((_, i) => (
+          <div 
+            key={i} 
+            className="floating-heart"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 5}s`,
+              animationDuration: `${5 + Math.random() * 10}s`
+            }}
+          >
+            ❤️
+          </div>
+        ))}
+      </div> */}
 
-    .floating-heart,
-    .floating-message {
-      position: absolute;
-      font-size: 1.2rem;
-      opacity: 0;
-      transform: translateY(0) rotate(0deg);
-      pointer-events: none;
-      user-select: none;
-      animation-name: floatUpAndFade;
-      animation-timing-function: cubic-bezier(0.2, 0.6, 0.8, 1);
-      animation-iteration-count: 1;
-      animation-fill-mode: forwards;
-    }
-
-    .floating-message {
-      background: linear-gradient(135deg, #ec4899, #8b5cf6);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      white-space: nowrap;
-      min-width: 60px;
-      text-align: center;
-    }
-
-    @keyframes floatUpAndFade {
-      0% {
-        transform: translateY(0) rotate(0deg);
-        opacity: 0;
-      }
-      10% {
-        opacity: 0.8;
-      }
-      80% {
-        opacity: 0.6;
-        transform: translateY(-100vh) rotate(10deg);
-      }
-      100% {
-        transform: translateY(-120vh) rotate(15deg);
-        opacity: 0;
-      }
-    }
-  `}</style>
-
-  <div className="floating-animations">
-    {/* Floating Hearts */}
-    <div className="floating-hearts">
-      {[...Array(15)].map((_, i) => (
-        <div
-          key={`heart-${i}`}
-          className="floating-heart"
-          style={{
-            left: `${Math.random() * 100}%`,
-            bottom: '-20px',
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${6 + Math.random() * 4}s`, // 6–10 seconds
-          }}
-        >
-          ❤️
-        </div>
-      ))}
-    </div>
-
-    {/* Floating Messages */}
-    <div className="floating-messages">
-      {[...Array(8)].map((_, i) => (
-        <div
-          key={`msg-${i}`}
-          className="floating-message"
-          style={{
-            left: `${Math.random() * 100}%`,
-            bottom: '-30px',
-            animationDelay: `${Math.random() * 7}s`,
-            animationDuration: `${8 + Math.random() * 6}s`, // 8–14 seconds
-          }}
-        >
-          {["I love you", "Forever", "Always", "My heart", "Together"][i % 5]}
-        </div>
-      ))}
-    </div>
-  </div>
-</>
-      
+      {/* Floating Messages Animation
+      <div className="floating-messages">
+        {[...Array(8)].map((_, i) => (
+          <div 
+            key={i} 
+            className="floating-message"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 7}s`,
+              animationDuration: `${8 + Math.random() * 12}s`
+            }}
+          >
+            {["I love you", "Forever", "Always", "My heart", "Together"][i % 5]}
+          </div>
+        ))}
+      </div>
+       */}
       {/* Edit Mode Toggle */}
       {/* <div className="fixed top-20 right-4 z-50">
         <button
@@ -1509,145 +1442,145 @@ useEffect(() => {
           </section>
 
           {/* Messages Section */}
-            <section id="messages" className="messages-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
-            <div className="messages-container max-w-4xl mx-auto px-4 md:px-6">
-              <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
-                Messages Between Kinza & Zain
-              </h2>
-          
-              <div className="chat-container bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden floating-card">
-                {/* Chat Header */}
-                <div className="chat-header bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="relative">
-                      <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3 floating-avatar">
-                        K
-                      </div>
-                      <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
-                    </div>
-                    <div className="relative ml-1 md:ml-2">
-                      <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl floating-avatar">
-                        Z
-                      </div>
-                      <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
-                    </div>
-                    <div className="ml-2 md:ml-4">
-                      <h3 className="font-semibold text-sm md:text-base">Kinza & Zain</h3>
-                      <p className="text-rose-100 text-xs md:text-sm">Online now</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-1 md:space-x-2">
-                    <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                    </button>
-                    <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-          
-                {/* Messages Area */}
-                <div className="messages-area p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
-                  {websiteData.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`message flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`message-content max-w-xs ${
-                          message.sender === 'zain' ? 'bg-indigo-100' : 'bg-rose-100'
-                        } rounded-xl md:rounded-2xl p-2 md:p-3 relative floating-message`}
-                        style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
-                      >
-                        {/* Tiny sender badge (K or Z) */}
-                        <div
-                          className={`absolute top-1.5 font-bold text-xs rounded-full flex items-center justify-center shadow-sm
-                            ${message.sender === 'kinza'
-                              ? 'left-1.5 bg-gradient-to-br from-rose-400 to-pink-500 text-white'
-                              : 'right-1.5 bg-gradient-to-br from-indigo-400 to-blue-500 text-white'
-                            }
-                            w-5 h-5 md:w-6 md:h-6 transition-all duration-200 hover:scale-110`}
-                          style={{ fontSize: '0.65rem', lineHeight: '1' }}
-                        >
-                          {message.sender === 'kinza' ? 'K' : 'Z'}
-                        </div>
-          
-                        {/* Message Text */}
-                        {editMode ? (
-                          <input
-                            type="text"
-                            value={message.text}
-                            onChange={(e) => {
-                              const newMessages = websiteData.messages.map(m =>
-                                m.id === message.id ? { ...m, text: e.target.value } : m
-                              );
-                              handleTextChange('messages', '', newMessages);
-                            }}
-                            className="w-full bg-transparent border-b border-dashed border-gray-400 floating-input text-sm md:text-base focus:border-gray-500 outline-none"
-                          />
-                        ) : (
-                          <p className="text-gray-800 text-sm md:text-base">{message.text}</p>
-                        )}
-          
-                        {/* Timestamp */}
-                        <p className="text-xs text-gray-500 mt-1 text-right">
-                          {message.timestamp?.toDate
-                            ? message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : message.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-          
-                {/* Message Input */}
-                <div className="message-input-container p-3 md:p-4 border-t border-rose-100 bg-white">
-                  <form onSubmit={handleSendMessage} className="flex items-center">
-                    <div className="sender-toggle flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
-                      <button
-                        type="button"
-                        className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
-                          currentSender === 'zain' ? 'bg-indigo-500 text-white' : 'text-indigo-500'
-                        } transition-colors duration-200 floating-button`}
-                        onClick={() => setCurrentSender('zain')}
-                      >
-                        Zain
-                      </button>
-                      <button
-                        type="button"
-                        className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
-                          currentSender === 'kinza' ? 'bg-rose-500 text-white' : 'text-rose-500'
-                        } transition-colors duration-200 floating-button`}
-                        onClick={() => setCurrentSender('kinza')}
-                      >
-                        Kinza
-                      </button>
-                    </div>
-          
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent floating-input text-sm md:text-base"
-                    />
-          
-                    <button
-                      type="submit"
-                      className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300 floating-button"
-                    >
-                      <PaperAirplaneIcon className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
-                  </form>
-                </div>
-              </div>
+          <section id="messages" className="messages-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
+  <div className="messages-container max-w-4xl mx-auto px-4 md:px-6">
+    <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
+      Messages Between Kinza & Zain
+    </h2>
+
+    <div className="chat-container bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden floating-card">
+      {/* Chat Header */}
+      <div className="chat-header bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
+        <div className="flex items-center">
+          <div className="relative">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3 floating-avatar">
+              K
             </div>
-          </section>
+            <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
+          </div>
+          <div className="relative ml-1 md:ml-2">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl floating-avatar">
+              Z
+            </div>
+            <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
+          </div>
+          <div className="ml-2 md:ml-4">
+            <h3 className="font-semibold text-sm md:text-base">Kinza & Zain</h3>
+            <p className="text-rose-100 text-xs md:text-sm">Online now</p>
+          </div>
+        </div>
+        <div className="flex space-x-1 md:space-x-2">
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+          </button>
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="messages-area p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
+        {websiteData.messages.map((message) => (
+          <div
+            key={message.id}
+            className={`message flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`message-content max-w-xs ${
+                message.sender === 'zain' ? 'bg-indigo-100' : 'bg-rose-100'
+              } rounded-xl md:rounded-2xl p-2 md:p-3 relative floating-message`}
+              style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
+            >
+              {/* Tiny sender badge (K or Z) */}
+              <div
+                className={`absolute top-1.5 font-bold text-xs rounded-full flex items-center justify-center shadow-sm
+                  ${message.sender === 'kinza'
+                    ? 'left-1.5 bg-gradient-to-br from-rose-400 to-pink-500 text-white'
+                    : 'right-1.5 bg-gradient-to-br from-indigo-400 to-blue-500 text-white'
+                  }
+                  w-5 h-5 md:w-6 md:h-6 transition-all duration-200 hover:scale-110`}
+                style={{ fontSize: '0.65rem', lineHeight: '1' }}
+              >
+                {message.sender === 'kinza' ? 'K' : 'Z'}
+              </div>
+
+              {/* Message Text */}
+              {editMode ? (
+                <input
+                  type="text"
+                  value={message.text}
+                  onChange={(e) => {
+                    const newMessages = websiteData.messages.map(m =>
+                      m.id === message.id ? { ...m, text: e.target.value } : m
+                    );
+                    handleTextChange('messages', '', newMessages);
+                  }}
+                  className="w-full bg-transparent border-b border-dashed border-gray-400 floating-input text-sm md:text-base focus:border-gray-500 outline-none"
+                />
+              ) : (
+                <p className="text-gray-800 text-sm md:text-base">{message.text}</p>
+              )}
+
+              {/* Timestamp */}
+              <p className="text-xs text-gray-500 mt-1 text-right">
+                {message.timestamp?.toDate
+                  ? message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : message.timestamp}
+              </p>
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Message Input */}
+      <div className="message-input-container p-3 md:p-4 border-t border-rose-100 bg-white">
+        <form onSubmit={handleSendMessage} className="flex items-center">
+          <div className="sender-toggle flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
+            <button
+              type="button"
+              className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
+                currentSender === 'zain' ? 'bg-indigo-500 text-white' : 'text-indigo-500'
+              } transition-colors duration-200 floating-button`}
+              onClick={() => setCurrentSender('zain')}
+            >
+              Zain
+            </button>
+            <button
+              type="button"
+              className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
+                currentSender === 'kinza' ? 'bg-rose-500 text-white' : 'text-rose-500'
+              } transition-colors duration-200 floating-button`}
+              onClick={() => setCurrentSender('kinza')}
+            >
+              Kinza
+            </button>
+          </div>
+
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent floating-input text-sm md:text-base"
+          />
+
+          <button
+            type="submit"
+            className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300 floating-button"
+          >
+            <PaperAirplaneIcon className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
           {/* Footer */}
           {/* <footer className="footer bg-gradient-to-r from-rose-900 to-purple-900 text-white py-10 md:py-12">
             <div className="footer-container max-w-4xl mx-auto px-4 md:px-6 text-center">
@@ -1683,7 +1616,6 @@ useEffect(() => {
             </div>
           )}
         </div>
-         </>
       );
     };
 
