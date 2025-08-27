@@ -1,20 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, PaperAirplaneIcon, HeartIcon } from '@heroicons/react/24/solid';
+import { ChevronLeftIcon, ChevronRightIcon, PaperAirplaneIcon, PencilIcon, HeartIcon, PhotoIcon, MusicalNoteIcon, CalendarIcon, MapPinIcon } from '@heroicons/react/24/solid';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { db } from '../firebase';
-import { collection, doc, getDoc, setDoc, onSnapshot, orderBy, query, serverTimestamp, addDoc } from 'firebase/firestore';
-import './Home.css';
+import { uploadImageToCloudinary } from '../cloudinary';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, addDoc, onSnapshot, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import Event from '../components/Events';
+import { LogIn } from "lucide-react"; // you can replace with Heroicons if you like
 
 const App = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const sliderRef = useRef(null);
+  const [isVisible, setIsVisible] = useState(false);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentSender, setCurrentSender] = useState('zain');
   const messagesEndRef = useRef(null);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeMemoryTab, setActiveMemoryTab] = useState('photos');
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [websiteData, setWebsiteData] = useState({
     hero: {
       title: "Kinza & Zain",
@@ -61,6 +67,24 @@ const App = () => {
     loveNotes: [],
     futurePlans: []
   });
+
+  // Close modal on Escape key
+useEffect(() => {
+  const handleEsc = (e) => {
+    if (e.key === 'Escape') setIsModalOpen(false);
+  };
+  window.addEventListener('keydown', handleEsc);
+  return () => window.removeEventListener('keydown', handleEsc);
+}, []);
+
+// Close modal on Escape
+useEffect(() => {
+  const handleEsc = (e) => {
+    if (e.key === 'Escape') setSelectedPhoto(null);
+  };
+  window.addEventListener('keydown', handleEsc);
+  return () => window.removeEventListener('keydown', handleEsc);
+}, []);
 
   // Prevent scrolling to bottom on page load
   useEffect(() => {
@@ -184,6 +208,177 @@ const App = () => {
     }
   };
 
+  // Save data to Firestore
+  const saveWebsiteData = async () => {
+    try {
+      await setDoc(doc(db, "website", "content"), websiteData);
+      toast.success("Website content saved successfully!");
+      setEditMode(false);
+    } catch (error) {
+      console.error("Error saving website data:", error);
+      toast.error("Failed to save website content");
+    }
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (e, section, index = null, subSection = null) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+      toast.info("Uploading image...");
+      const imageUrl = await uploadImageToCloudinary(file);
+      
+      if (section === "gallery") {
+        const updatedGallery = [...websiteData.gallery];
+        if (index !== null) {
+          updatedGallery[index] = imageUrl;
+        } else {
+          updatedGallery.push(imageUrl);
+        }
+        setWebsiteData({
+          ...websiteData,
+          gallery: updatedGallery
+        });
+      } else if (section === "hero") {
+        // For hero background or other specific images
+        setWebsiteData({
+          ...websiteData,
+          [section]: {
+            ...websiteData[section],
+            image: imageUrl
+          }
+        });
+      } else if (section === "memories" && subSection === "photos") {
+        // For memory photos
+        const updatedPhotos = [...websiteData.memories.photos];
+        if (index !== null) {
+          updatedPhotos[index] = { ...updatedPhotos[index], url: imageUrl };
+        } else {
+          updatedPhotos.push({ id: Date.now(), url: imageUrl, caption: "New memory" });
+        }
+        setWebsiteData({
+          ...websiteData,
+          memories: {
+            ...websiteData.memories,
+            photos: updatedPhotos
+          }
+        });
+      }
+      
+      toast.success("Image uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image");
+    }
+  };
+
+  // Handle text changes
+  const handleTextChange = (section, field, value, index = null, subSection = null) => {
+    if (index !== null && subSection) {
+      // For array fields within objects like memories.photos
+      const updatedSubSection = [...websiteData[section][subSection]];
+      updatedSubSection[index][field] = value;
+      setWebsiteData({
+        ...websiteData,
+        [section]: {
+          ...websiteData[section],
+          [subSection]: updatedSubSection
+        }
+      });
+    } else if (index !== null) {
+      // For array fields like timeline
+      const updatedArray = [...websiteData[section]];
+      updatedArray[index][field] = value;
+      setWebsiteData({
+        ...websiteData,
+        [section]: updatedArray
+      });
+    } else if (section.includes('.')) {
+      // For nested fields like about.kinza.name
+      const [parent, child] = section.split('.');
+      setWebsiteData({
+        ...websiteData,
+        [parent]: {
+          ...websiteData[parent],
+          [child]: {
+            ...websiteData[parent][child],
+            [field]: value
+          }
+        }
+      });
+    } else {
+      // For simple fields
+      setWebsiteData({
+        ...websiteData,
+        [section]: {
+          ...websiteData[section],
+          [field]: value
+        }
+      });
+    }
+  };
+
+  // Add new item to a section
+  const addNewItem = (section, subSection = null) => {
+    if (subSection) {
+      // For subsections like memories.photos
+      const newItem = { id: Date.now() };
+      if (subSection === "photos") newItem.url = "";
+      if (subSection === "photos") newItem.caption = "New memory";
+      if (subSection === "songs") newItem.title = "New song";
+      if (subSection === "songs") newItem.artist = "Artist";
+      if (subSection === "songs") newItem.caption = "Special meaning";
+      if (subSection === "places") newItem.name = "New place";
+      if (subSection === "places") newItem.description = "Special memory";
+      if (subSection === "dates") newItem.title = "New date";
+      if (subSection === "dates") newItem.date = "Date";
+      if (subSection === "dates") newItem.description = "Why it's special";
+      
+      setWebsiteData({
+        ...websiteData,
+        [section]: {
+          ...websiteData[section],
+          [subSection]: [...websiteData[section][subSection], newItem]
+        }
+      });
+    } else {
+      // For main sections like loveNotes
+      const newItem = { id: Date.now() };
+      if (section === "loveNotes") newItem.content = "New note";
+      if (section === "loveNotes") newItem.date = new Date().toLocaleDateString();
+      if (section === "futurePlans") newItem.title = "New plan";
+      if (section === "futurePlans") newItem.description = "Description";
+      
+      setWebsiteData({
+        ...websiteData,
+        [section]: [...websiteData[section], newItem]
+      });
+    }
+  };
+
+  // Remove item from a section
+  const removeItem = (section, index, subSection = null) => {
+    if (subSection) {
+      const updatedSubSection = [...websiteData[section][subSection]];
+      updatedSubSection.splice(index, 1);
+      setWebsiteData({
+        ...websiteData,
+        [section]: {
+          ...websiteData[section],
+          [subSection]: updatedSubSection
+        }
+      });
+    } else {
+      const updatedArray = [...websiteData[section]];
+      updatedArray.splice(index, 1);
+      setWebsiteData({
+        ...websiteData,
+        [section]: updatedArray
+      });
+    }
+  };
+
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     scrollToBottom();
@@ -250,51 +445,143 @@ const App = () => {
     <div className="font-sans text-gray-800">
       <ToastContainer position="bottom-right" autoClose={3000} />
       
-      <Event/>
 
-      {/* Floating Hearts Animation */}
-      <div className="floating-hearts">
-        {[...Array(15)].map((_, i) => (
-          <div 
-            key={i} 
-            className="floating-heart"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${5 + Math.random() * 10}s`
-            }}
-          >
-            ❤️
-          </div>
-        ))}
-      </div>
+    <>
+  {/* Floating Animations - Hearts & Messages (One-Way Upward, No Loop) */}
+  <style jsx>{`
+    .floating-animations {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    }
 
-      {/* Floating Messages Animation */}
-      <div className="floating-messages">
-        {[...Array(8)].map((_, i) => (
-          <div 
-            key={i} 
-            className="floating-message"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 7}s`,
-              animationDuration: `${8 + Math.random() * 12}s`
-            }}
-          >
-            {["I love you", "Forever", "Always", "My heart", "Together"][i % 5]}
-          </div>
-        ))}
-      </div>
+    .floating-heart,
+    .floating-message {
+      position: absolute;
+      font-size: 1.2rem;
+      opacity: 0;
+      transform: translateY(0) rotate(0deg);
+      pointer-events: none;
+      user-select: none;
+      animation-name: floatUpAndFade;
+      animation-timing-function: cubic-bezier(0.2, 0.6, 0.8, 1);
+      animation-iteration-count: 1;
+      animation-fill-mode: forwards;
+    }
 
-      {/* Navigation */}
-      <nav className="main-navigation">
-        <div className="navigation-container flex flex-wrap items-center justify-between py-5 px-4 md:px-8 bg-white/90 backdrop-blur-sm shadow-md">
-          <div className="logo text-3xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent animate-pulse floating-logo">K&Z</div>
-          <div className="navigation-links flex flex-wrap justify-center space-x-4 md:space-x-8 mt-4 md:mt-0">
-            <a href="/kinza/login" className="gjs-t-link kinza-login-link hover:text-rose-600 transition-all duration-300 font-medium floating-nav-item text-sm md:text-base">Kinza Login</a>
-          </div>
+    .floating-message {
+      background: linear-gradient(135deg, #ec4899, #8b5cf6);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      white-space: nowrap;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    @keyframes floatUpAndFade {
+      0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 0;
+      }
+      10% {
+        opacity: 0.8;
+      }
+      80% {
+        opacity: 0.6;
+        transform: translateY(-100vh) rotate(10deg);
+      }
+      100% {
+        transform: translateY(-120vh) rotate(15deg);
+        opacity: 0;
+      }
+    }
+  `}</style>
+
+  <div className="floating-animations">
+    {/* Floating Hearts */}
+    <div className="floating-hearts">
+      {[...Array(15)].map((_, i) => (
+        <div
+          key={`heart-${i}`}
+          className="floating-heart"
+          style={{
+            left: `${Math.random() * 100}%`,
+            bottom: '-20px',
+            animationDelay: `${Math.random() * 5}s`,
+            animationDuration: `${6 + Math.random() * 4}s`, // 6–10 seconds
+          }}
+        >
+          ❤️
         </div>
-      </nav>
+      ))}
+    </div>
+
+    {/* Floating Messages */}
+    <div className="floating-messages">
+      {[...Array(8)].map((_, i) => (
+        <div
+          key={`msg-${i}`}
+          className="floating-message"
+          style={{
+            left: `${Math.random() * 100}%`,
+            bottom: '-30px',
+            animationDelay: `${Math.random() * 7}s`,
+            animationDuration: `${8 + Math.random() * 6}s`, // 8–14 seconds
+          }}
+        >
+          {["I love you", "Forever", "Always", "My heart", "Together"][i % 5]}
+        </div>
+      ))}
+    </div>
+  </div>
+</>
+      
+      {/* Edit Mode Toggle */}
+      {/* <div className="fixed top-20 right-4 z-50">
+        <button
+          onClick={() => setEditMode(!editMode)}
+          className={`p-3 rounded-full shadow-lg transition-all duration-300 ${
+            editMode ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+          } text-white floating-button`}
+        >
+          <PencilIcon className="w-6 h-6" />
+        </button>
+      </div> */}
+
+    <nav className="main-navigation w-full">
+  <div className="navigation-container flex flex-wrap items-center justify-between py-4 px-3 sm:px-6 md:px-8 bg-white/90 backdrop-blur-sm shadow-md">
+    
+    {/* Logo with Round Picture */}
+    <div className="flex items-center gap-2">
+      <img
+        src="/favicon.png" // replace with your image path
+        alt="Kinza Zain Logo"
+        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover shadow-md"
+      />
+      <div className="text-sm sm:text-base md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-rose-600 to-purple-600 bg-clip-text text-transparent">
+        Kinza ❤️ Zain
+      </div>
+    </div>
+
+    {/* Navigation Links */}
+    <div className="navigation-links flex flex-wrap items-center justify-center mt-3 md:mt-0">
+      <a
+        href="/kinza/login"
+        className="flex items-center gap-1 text-red-600 sm:gap-2 hover:text-rose-600 transition-all duration-300 font-medium text-xs sm:text-sm md:text-base"
+      >
+        <LogIn className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" />
+        Kinza Login
+      </a>
+    </div>
+  </div>
+</nav>
+
 
       {/* Hero Section */}
       <section id="home" className="hero-section relative min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-purple-50 to-indigo-50 overflow-hidden">
@@ -323,49 +610,77 @@ const App = () => {
         </div>
 
         {/* Hero Content */}
-        <div className="hero-content text-center z-10 px-4 md:px-6">
-          <div className="3d-hearts-container mb-8">
-            <div className="heart-animation animate-pulse floating-heart-main">
-              <svg width="150" height="150" viewBox="0 0 100 100" className="heart-svg mx-auto">
-                <path
-                  d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z"
-                  fill="#e11d48"
-                  opacity="0.8"
-                ></path>
-              </svg>
-            </div>
-          </div>
-          
-          <h1 className="gjs-t-h1 hero-title text-4xl md:text-5xl lg:text-7xl font-bold bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 animate-fade-in floating-title">
-            {websiteData.hero.title}
-          </h1>
-          <p className="hero-subtitle text-lg md:text-xl lg:text-2xl text-gray-600 mb-10 animate-fade-in-delay floating-subtitle">
-            {websiteData.hero.subtitle}
-          </p>
-          
-          <div className="hero-cta-container space-y-4 sm:space-y-0 sm:space-x-6 flex flex-col sm:flex-row justify-center animate-fade-in-delay-2">
-            <a
-              href="#about"
-              className="gjs-t-button explore-cta px-6 py-3 md:px-8 md:py-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 floating-button text-center"
-            >
-              Explore Our Story
-            </a>
-            <a
-              href="#messages"
-              className="message-cta px-6 py-3 md:px-8 md:py-3 bg-white text-rose-600 font-semibold rounded-full shadow-md hover:bg-gray-50 border-2 border-rose-200 hover:border-rose-300 transition-all duration-300 floating-button text-center"
-            >
-              Leave a Message
-            </a>
-          </div>
-        </div>
+      <div className="hero-content text-center z-10 px-3 sm:px-4 md:px-6">
+  <div className="3d-hearts-container mb-6 sm:mb-8">
+    <div className="heart-animation animate-pulse floating-heart-main">
+      <svg
+        width="120"
+        height="120"
+        viewBox="0 0 100 100"
+        className="heart-svg mx-auto sm:w-[140px] sm:h-[140px] md:w-[150px] md:h-[150px]"
+      >
+        <path
+          d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z"
+          fill="#e11d48"
+          opacity="0.8"
+        ></path>
+      </svg>
+    </div>
+  </div>
+
+  {editMode ? (
+    <>
+      <input
+        type="text"
+        value={websiteData.hero.title}
+        onChange={(e) => handleTextChange("hero", "title", e.target.value)}
+        className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-bold bg-transparent text-center mb-3 border-2 border-dashed border-rose-500 p-2 rounded floating-input w-full max-w-2xl mx-auto"
+      />
+      <textarea
+        value={websiteData.hero.subtitle}
+        onChange={(e) => handleTextChange("hero", "subtitle", e.target.value)}
+        className="text-base sm:text-lg md:text-xl lg:text-2xl bg-transparent text-center mb-8 border-2 border-dashed border-rose-300 p-2 rounded w-full max-w-2xl mx-auto floating-input"
+        rows="2"
+      />
+    </>
+  ) : (
+    <>
+      <h1 className="gjs-t-h1 hero-title text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-bold bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-3 animate-fade-in floating-title">
+        {websiteData.hero.title}
+      </h1>
+      <p className="hero-subtitle text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 animate-fade-in-delay floating-subtitle">
+        {websiteData.hero.subtitle}
+      </p>
+    </>
+  )}
+
+  <div className="hero-cta-container space-y-3 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row justify-center items-center animate-fade-in-delay-2">
+  <a
+    href="#about"
+    className="w-40 sm:w-auto gjs-t-button explore-cta px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white font-semibold rounded-full shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 floating-button text-center text-sm sm:text-base"
+  >
+    Explore Our Story
+  </a>
+  <a
+    href="#messages"
+    className="w-40 sm:w-auto message-cta px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-3 bg-white text-rose-600 font-semibold rounded-full shadow-md hover:bg-gray-50 border-2 border-rose-200 hover:border-rose-300 transition-all duration-300 floating-button text-center text-sm sm:text-base"
+  >
+    Leave a Message
+  </a>
+</div>
+
+</div>
+
       </section>
 
       {/* About Section */}
       <section id="about" className="about-section py-16 md:py-20 bg-white overflow-hidden">
         <div className="about-container max-w-6xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 about-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-12 md:mb-16 animate-fade-in floating-title">
-            About Kinza & Zain
-          </h2>
+<h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
+  About Kinza & Zain
+</h2>
+
+
           
           <div className="about-grid grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
             {/* Kinza Card */}
@@ -377,24 +692,58 @@ const App = () => {
                   </div>
                 </div>
                 
-                <h3 className="gjs-t-h2 kinza-name text-xl md:text-2xl font-semibold text-center text-rose-800 mb-2 floating-text">
-                  {websiteData.about.kinza.name}
-                </h3>
-                <div className="heart-divider flex justify-center mb-4">
-                  <svg width="30" height="30" viewBox="0 0 100 100" className="text-rose-400 floating-icon">
-                    <path d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z" fill="currentColor"></path>
-                  </svg>
-                </div>
-                <p className="kinza-bio text-gray-700 mt-4 text-center leading-relaxed floating-text text-sm md:text-base">
-                  {websiteData.about.kinza.bio}
-                </p>
-                <div className="kinza-traits mt-6 flex flex-wrap justify-center gap-2">
-                  {websiteData.about.kinza.traits.map((trait, index) => (
-                    <span key={index} className="trait-artist px-3 py-1 bg-rose-200 text-rose-800 rounded-full text-xs md:text-sm font-medium transform hover:scale-105 transition-all duration-300 floating-tag">
-                      {trait}
-                    </span>
-                  ))}
-                </div>
+                {editMode ? (
+                  <>
+                    <input
+                      type="text"
+                      value={websiteData.about.kinza.name}
+                      onChange={(e) => handleTextChange('about.kinza', 'name', e.target.value)}
+                      className="text-xl md:text-2xl font-semibold text-center text-rose-800 mb-2 border-2 border-dashed border-rose-500 p-1 rounded w-full floating-input"
+                    />
+                    <textarea
+                      value={websiteData.about.kinza.bio}
+                      onChange={(e) => handleTextChange('about.kinza', 'bio', e.target.value)}
+                      className="text-gray-700 mt-4 text-center leading-relaxed border-2 border-dashed border-rose-300 p-2 rounded w-full floating-input text-sm md:text-base"
+                      rows="4"
+                    />
+                    <div className="kinza-traits mt-6 flex flex-wrap justify-center gap-2">
+                      {websiteData.about.kinza.traits.map((trait, index) => (
+                        <input
+                          key={index}
+                          type="text"
+                          value={trait}
+                          onChange={(e) => {
+                            const newTraits = [...websiteData.about.kinza.traits];
+                            newTraits[index] = e.target.value;
+                            handleTextChange('about.kinza', 'traits', newTraits);
+                          }}
+                          className="px-3 py-1 bg-rose-200 text-rose-800 rounded-full text-xs md:text-sm font-medium w-24 text-center border border-dashed border-rose-400 floating-input"
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="gjs-t-h2 kinza-name text-xl md:text-2xl font-semibold text-center text-rose-800 mb-2 floating-text">
+                      {websiteData.about.kinza.name}
+                    </h3>
+                    <div className="heart-divider flex justify-center mb-4">
+                      <svg width="30" height="30" viewBox="0 0 100 100" className="text-rose-400 floating-icon">
+                        <path d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z" fill="currentColor"></path>
+                      </svg>
+                    </div>
+                    <p className="kinza-bio text-gray-700 mt-4 text-center leading-relaxed floating-text text-sm md:text-base">
+                      {websiteData.about.kinza.bio}
+                    </p>
+                    <div className="kinza-traits mt-6 flex flex-wrap justify-center gap-2">
+                      {websiteData.about.kinza.traits.map((trait, index) => (
+                        <span key={index} className="trait-artist px-3 py-1 bg-rose-200 text-rose-800 rounded-full text-xs md:text-sm font-medium transform hover:scale-105 transition-all duration-300 floating-tag">
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -407,24 +756,58 @@ const App = () => {
                   </div>
                 </div>
                 
-                <h3 className="gjs-t-h2 zain-name text-xl md:text-2xl font-semibold text-center text-indigo-800 mb-2 floating-text">
-                  {websiteData.about.zain.name}
-                </h3>
-                <div className="heart-divider flex justify-center mb-4">
-                  <svg width="30" height="30" viewBox="0 0 100 100" className="text-indigo-400 floating-icon">
-                    <path d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z" fill="currentColor"></path>
-                  </svg>
-                </div>
-                <p className="zain-bio text-gray-700 mt-4 text-center leading-relaxed floating-text text-sm md:text-base">
-                  {websiteData.about.zain.bio}
-                </p>
-                <div className="zain-traits mt-6 flex flex-wrap justify-center gap-2">
-                  {websiteData.about.zain.traits.map((trait, index) => (
-                    <span key={index} className="trait-protector px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full text-xs md:text-sm font-medium transform hover:scale-105 transition-all duration-300 floating-tag">
-                      {trait}
-                    </span>
-                  ))}
-                </div>
+                {editMode ? (
+                  <>
+                    <input
+                      type="text"
+                      value={websiteData.about.zain.name}
+                      onChange={(e) => handleTextChange('about.zain', 'name', e.target.value)}
+                      className="text-xl md:text-2xl font-semibold text-center text-indigo-800 mb-2 border-2 border-dashed border-indigo-500 p-1 rounded w-full floating-input"
+                    />
+                    <textarea
+                      value={websiteData.about.zain.bio}
+                      onChange={(e) => handleTextChange('about.zain', 'bio', e.target.value)}
+                      className="text-gray-700 mt-4 text-center leading-relaxed border-2 border-dashed border-indigo-300 p-2 rounded w-full floating-input text-sm md:text-base"
+                      rows="4"
+                    />
+                    <div className="zain-traits mt-6 flex flex-wrap justify-center gap-2">
+                      {websiteData.about.zain.traits.map((trait, index) => (
+                        <input
+                          key={index}
+                          type="text"
+                          value={trait}
+                          onChange={(e) => {
+                            const newTraits = [...websiteData.about.zain.traits];
+                            newTraits[index] = e.target.value;
+                            handleTextChange('about.zain', 'traits', newTraits);
+                          }}
+                          className="px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full text-xs md:text-sm font-medium w-24 text-center border border-dashed border-indigo-400 floating-input"
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="gjs-t-h2 zain-name text-xl md:text-2xl font-semibold text-center text-indigo-800 mb-2 floating-text">
+                      {websiteData.about.zain.name}
+                    </h3>
+                    <div className="heart-divider flex justify-center mb-4">
+                      <svg width="30" height="30" viewBox="0 0 100 100" className="text-indigo-400 floating-icon">
+                        <path d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z" fill="currentColor"></path>
+                      </svg>
+                    </div>
+                    <p className="zain-bio text-gray-700 mt-4 text-center leading-relaxed floating-text text-sm md:text-base">
+                      {websiteData.about.zain.bio}
+                    </p>
+                    <div className="zain-traits mt-6 flex flex-wrap justify-center gap-2">
+                      {websiteData.about.zain.traits.map((trait, index) => (
+                        <span key={index} className="trait-protector px-3 py-1 bg-indigo-200 text-indigo-800 rounded-full text-xs md:text-sm font-medium transform hover:scale-105 transition-all duration-300 floating-tag">
+                          {trait}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -433,9 +816,18 @@ const App = () => {
           <div className="their-story mt-16 md:mt-20 p-6 md:p-8 bg-gradient-to-r from-rose-50/50 to-purple-50/50 rounded-2xl shadow-lg border border-rose-100/50 animate-fade-in-delay floating-card">
             <h3 className="text-2xl md:text-3xl font-semibold text-center text-rose-800 mb-6 floating-title">Their Story</h3>
             
-            <p className="text-gray-700 text-center leading-relaxed max-w-3xl mx-auto floating-text text-sm md:text-base">
-              {websiteData.about.story}
-            </p>
+            {editMode ? (
+              <textarea
+                value={websiteData.about.story}
+                onChange={(e) => handleTextChange('about', 'story', e.target.value)}
+                className="text-gray-700 text-center leading-relaxed max-w-3xl mx-auto w-full border-2 border-dashed border-rose-300 p-4 rounded floating-input text-sm md:text-base"
+                rows="5"
+              />
+            ) : (
+              <p className="text-gray-700 text-center leading-relaxed max-w-3xl mx-auto floating-text text-sm md:text-base">
+                {websiteData.about.story}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -443,9 +835,20 @@ const App = () => {
       {/* Timeline Section */}
       <section id="timeline" className="timeline-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
         <div className="timeline-container max-w-4xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 timeline-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-12 md:mb-16 floating-title">
+          <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
             Our Love Journey
           </h2>
+          
+          {editMode && (
+            <div className="flex justify-center mb-6">
+              <button 
+                onClick={() => addNewItem('timeline')}
+                className="px-4 py-2 bg-rose-500 text-white rounded-full flex items-center floating-button"
+              >
+                <span>Add New Event</span>
+              </button>
+            </div>
+          )}
           
           <div className="timeline-wrapper relative">
             {/* Vertical Line */}
@@ -455,15 +858,46 @@ const App = () => {
               <div key={index} className={`timeline-item flex ${index % 2 === 0 ? '' : 'flex-row-reverse'} mb-12 md:mb-16 relative floating-card`}>
                 <div className={`timeline-content w-full md:w-1/2 ${index % 2 === 0 ? 'pr-0 md:pr-8 text-left md:text-right' : 'pl-0 md:pl-8'}`}>
                   <div className="timeline-card p-4 md:p-6 bg-white rounded-xl shadow-md border-l-4 border-rose-500 hover:shadow-lg transition-all duration-300">
-                    <h3 className="gjs-t-h2 timeline-event-title text-lg md:text-xl font-semibold text-gray-800 floating-text">
-                      {event.title}
-                    </h3>
-                    <p className="timeline-event-date text-sm text-rose-600 font-medium floating-text">
-                      {event.date}
-                    </p>
-                    <p className="timeline-event-description text-gray-700 mt-2 floating-text text-sm md:text-base">
-                      {event.description}
-                    </p>
+                    {editMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={event.title}
+                          onChange={(e) => handleTextChange('timeline', 'title', e.target.value, index)}
+                          className="text-lg md:text-xl font-semibold text-gray-800 w-full border-b border-dashed border-rose-300 mb-2 floating-input"
+                        />
+                        <input
+                          type="text"
+                          value={event.date}
+                          onChange={(e) => handleTextChange('timeline', 'date', e.target.value, index)}
+                          className="text-sm text-rose-600 font-medium w-full border-b border-dashed border-rose-200 mb-2 floating-input"
+                        />
+                        <textarea
+                          value={event.description}
+                          onChange={(e) => handleTextChange('timeline', 'description', e.target.value, index)}
+                          className="text-gray-700 mt-2 w-full border border-dashed border-rose-200 p-2 rounded floating-input text-sm"
+                          rows="3"
+                        />
+                        <button 
+                          onClick={() => removeItem('timeline', index)}
+                          className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="gjs-t-h2 timeline-event-title text-lg md:text-xl font-semibold text-gray-800 floating-text">
+                          {event.title}
+                        </h3>
+                        <p className="timeline-event-date text-sm text-rose-600 font-medium floating-text">
+                          {event.date}
+                        </p>
+                        <p className="timeline-event-description text-gray-700 mt-2 floating-text text-sm md:text-base">
+                          {event.description}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="timeline-dot absolute left-1/2 transform -translate-x-1/2 w-4 h-4 md:w-6 md:h-6 bg-rose-500 rounded-full border-4 border-white shadow floating-dot">
@@ -477,82 +911,237 @@ const App = () => {
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className="gallery-section py-16 md:py-20 bg-white overflow-hidden" ref={sliderRef}>
-        <div className="gallery-container max-w-7xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 gallery-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-10 md:mb-12 floating-title">
-            Our Moments
-          </h2>
-          
-          {/* Slider Controls */}
-          <div className="slider-controls flex justify-center mb-6 md:mb-8 space-x-4">
-            <button 
-              onClick={prevSlide}
-              className="p-2 md:p-3 bg-rose-100 text-rose-700 rounded-full hover:bg-rose-200 transition-all duration-300 shadow-md floating-button"
-              aria-label="Previous slide"
+   <section
+  id="gallery"
+  className="gallery-section py-16 md:py-20 bg-gradient-to-br from-pink-50 via-white to-purple-50 overflow-hidden"
+  ref={sliderRef}
+>
+  <div className="gallery-container max-w-7xl mx-auto px-4 md:px-6">
+    {/* Title */}
+    <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 via-pink-600 to-purple-700 bg-clip-text text-transparent mb-6 md:mb-10 animate-fade-in-up">
+      Our Moments
+    </h2>
+
+    {/* Edit Mode Upload Button */}
+    {editMode && (
+      <div className="flex justify-center mb-6">
+        <label className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-medium text-sm floating-button">
+          Upload New Image
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => handleImageUpload(e, "gallery")}
+            accept="image/*"
+          />
+        </label>
+      </div>
+    )}
+
+    {/* Auto-Scrolling Two-Row Gallery */}
+    <div className="relative w-full overflow-hidden">
+      {/* Top Row */}
+      <div className="flex animate-scroll-left-1 mb-4 md:mb-6">
+        {([...galleryImages, ...galleryImages]).map((image, index) => {
+          const imgUrl =
+            typeof image === 'string' && image.includes('http')
+              ? image
+              : `https://app.grapesjs.com/api/assets/random-image?query=${image}&w=400&h=300`;
+
+          return (
+            <div
+              key={`top-${index}`}
+              className="flex-shrink-0 w-40 md:w-48 lg:w-56 h-32 md:h-40 mx-1.5 md:mx-2 relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-500 group floating-card cursor-pointer"
+              onClick={() => {
+                setSelectedImage(imgUrl);
+                setIsModalOpen(true);
+              }}
             >
-              <ChevronLeftIcon className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-            <div className="slide-indicators flex items-center space-x-2">
-              {Array.from({ length: Math.ceil(galleryImages.length / 8) }).map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-2 h-2 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
-                    currentSlide === index ? 'bg-rose-600 scale-125' : 'bg-rose-300'
-                  } floating-dot`}
-                  aria-label={`Go to slide ${index + 1}`}
-                ></button>
-              ))}
-            </div>
-            <button 
-              onClick={nextSlide}
-              className="p-2 md:p-3 bg-rose-100 text-rose-700 rounded-full hover:bg-rose-200 transition-all duration-300 shadow-md floating-button"
-              aria-label="Next slide"
-            >
-              <ChevronRightIcon className="w-5 h-5 md:w-6 md:h-6" />
-            </button>
-          </div>
-          
-          {/* Slider Container */}
-          <div className="slider-wrapper overflow-hidden relative">
-            <div 
-              className="gallery-slider flex transition-transform duration-700 ease-in-out"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
-            >
-              {Array.from({ length: Math.ceil(galleryImages.length / 8) }).map((_, slideIndex) => (
-                <div key={slideIndex} className="gallery-slide min-w-full">
-                  <div className="gallery-grid grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 px-1 md:px-2">
-                    {galleryImages.slice(slideIndex * 8, (slideIndex + 1) * 8).map((image, index) => (
-                      <div key={index} className="gallery-item overflow-hidden rounded-xl md:rounded-2xl shadow-lg transform hover:scale-105 transition-all duration-500 group relative floating-card">
-                        <div className="relative overflow-hidden h-32 md:h-48">
-                          <img
-                            src={typeof image === 'string' && image.includes('http') ? image : `https://app.grapesjs.com/api/assets/random-image?query=${image}&w=400&h=300`}
-                            alt={`Gallery image ${slideIndex * 8 + index + 1}`}
-                            loading="lazy"
-                            className="gallery-image w-full h-full object-cover group-hover:scale-110 transition-all duration-700"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end p-3 md:p-4">
-                            <p className="text-white font-medium text-xs md:text-sm">
-                              {typeof image === 'string' && image.includes('http') 
-                                ? `Image ${slideIndex * 8 + index + 1}` 
-                                : image.replace(/%20/g, ' ')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <img
+                src={imgUrl}
+                alt={`Gallery top ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                <p className="text-white text-xs font-medium truncate">Click to view</p>
+              </div>
+              {editMode && (
+                <div className="absolute top-1.5 right-1.5 flex gap-1">
+                  <label className="bg-blue-500 text-white p-1 rounded text-xs cursor-pointer hover:bg-blue-600 transition">
+                    Replace
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e, "gallery", index % galleryImages.length)}
+                      accept="image/*"
+                    />
+                  </label>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newGallery = [...galleryImages];
+                      newGallery.splice(index % galleryImages.length, 1);
+                      handleTextChange('gallery', '', newGallery);
+                    }}
+                    className="bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600 transition"
+                  >
+                    Remove
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          );
+        })}
+      </div>
+
+      {/* Bottom Row */}
+      <div className="flex animate-scroll-right-1">
+        {([...galleryImages, ...galleryImages]).map((image, index) => {
+          const imgUrl =
+            typeof image === 'string' && image.includes('http')
+              ? image
+              : `https://app.grapesjs.com/api/assets/random-image?query=${image}&w=400&h=300`;
+
+          return (
+            <div
+              key={`bottom-${index}`}
+              className="flex-shrink-0 w-40 md:w-48 lg:w-56 h-32 md:h-40 mx-1.5 md:mx-2 relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transform hover:scale-105 transition-all duration-500 group floating-card cursor-pointer"
+              onClick={() => {
+                setSelectedImage(imgUrl);
+                setIsModalOpen(true);
+              }}
+            >
+              <img
+                src={imgUrl}
+                alt={`Gallery bottom ${index + 1}`}
+                loading="lazy"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                <p className="text-white text-xs font-medium truncate">Click to view</p>
+              </div>
+              {editMode && (
+                <div className="absolute top-1.5 right-1.5 flex gap-1">
+                  <label className="bg-blue-500 text-white p-1 rounded text-xs cursor-pointer hover:bg-blue-600 transition">
+                    Replace
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(e, "gallery", index % galleryImages.length)}
+                      accept="image/*"
+                    />
+                  </label>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newGallery = [...galleryImages];
+                      newGallery.splice(index % galleryImages.length, 1);
+                      handleTextChange('gallery', '', newGallery);
+                    }}
+                    className="bg-red-500 text-white p-1 rounded text-xs hover:bg-red-600 transition"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* Fullscreen Image Modal */}
+    {isModalOpen && selectedImage && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in"
+        onClick={() => setIsModalOpen(false)}
+        aria-modal="true"
+        role="dialog"
+      >
+        <div
+          className="relative max-w-4xl max-h-full animate-scale-in"
+          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside
+        >
+          {/* Close Button */}
+          <button
+            onClick={() => setIsModalOpen(false)}
+            className="absolute -top-12 right-0 text-white hover:text-gray-300 text-xl font-bold transition"
+            aria-label="Close modal"
+          >
+            ✕ Close
+          </button>
+
+          {/* Fullscreen Image */}
+          <img
+            src={selectedImage}
+            alt="Fullscreen view"
+            className="w-full h-auto max-h-[90vh] object-contain rounded-xl shadow-2xl"
+            style={{ imageRendering: 'smooth' }}
+          />
         </div>
-      </section>
+      </div>
+    )}
+
+    {/* Animations */}
+    <style jsx>{`
+      @keyframes scrollLeft {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      @keyframes scrollRight {
+        0% { transform: translateX(-50%); }
+        100% { transform: translateX(0); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes scaleIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+
+      .animate-scroll-left-1 {
+        animation: scrollLeft 30s linear infinite;
+        display: flex;
+        gap: 1rem;
+      }
+      .animate-scroll-right-1 {
+        animation: scrollRight 35s linear infinite;
+        display: flex;
+        gap: 1rem;
+      }
+
+      .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+      .animate-scale-in {
+        animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+      }
+
+      .animate-scroll-left-1:hover,
+      .animate-scroll-right-1:hover {
+        animation-play-state: paused;
+      }
+
+      @media (max-width: 768px) {
+        .animate-scroll-left-1, .animate-scroll-right-1 {
+          animation-duration: 20s;
+        }
+        .flex-shrink-0 {
+          width: 38vw !important;
+          margin-left: 0.5rem !important;
+          margin-right: 0.5rem !important;
+        }
+      }
+    `}</style>
+  </div>
+</section>
 
       {/* Memories Section */}
       <section id="memories" className="memories-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
         <div className="memories-container max-w-6xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 memories-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-10 md:mb-12 floating-title">
+          <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
             Our Special Memories
           </h2>
           
@@ -563,70 +1152,149 @@ const App = () => {
                 onClick={() => setActiveMemoryTab('photos')}
                 className={`px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition-all duration-300 flex items-center ${activeMemoryTab === 'photos' ? 'bg-rose-500 text-white' : 'text-rose-700'}`}
               >
-                <svg className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
+                <PhotoIcon className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
                 Photos
               </button>
               <button
                 onClick={() => setActiveMemoryTab('songs')}
                 className={`px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition-all duration-300 flex items-center ${activeMemoryTab === 'songs' ? 'bg-rose-500 text-white' : 'text-rose-700'}`}
               >
-                <svg className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
-                </svg>
+                <MusicalNoteIcon className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
                 Songs
               </button>
               <button
                 onClick={() => setActiveMemoryTab('places')}
                 className={`px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition-all duration-300 flex items-center ${activeMemoryTab === 'places' ? 'bg-rose-500 text-white' : 'text-rose-700'}`}
               >
-                <svg className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
+                <MapPinIcon className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
                 Places
               </button>
               <button
                 onClick={() => setActiveMemoryTab('dates')}
                 className={`px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition-all duration-300 flex items-center ${activeMemoryTab === 'dates' ? 'bg-rose-500 text-white' : 'text-rose-700'}`}
               >
-                <svg className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                </svg>
+                <CalendarIcon className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
                 Dates
               </button>
             </div>
           </div>
           
+          {editMode && (
+            <div className="flex justify-center mb-6">
+              <button 
+                onClick={() => addNewItem('memories', activeMemoryTab)}
+                className="px-4 py-2 bg-rose-500 text-white rounded-full flex items-center floating-button text-sm md:text-base"
+              >
+                <span>Add New {activeMemoryTab.slice(0, -1)}</span>
+              </button>
+            </div>
+          )}
+          
           {/* Memory Content */}
           <div className="memory-content">
             {activeMemoryTab === 'photos' && (
               <div className="memory-photos grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {memories.photos.map((photo, index) => (
-                  <div key={photo.id} className="memory-photo-card bg-white rounded-xl md:rounded-2xl shadow-lg overflow-hidden floating-card">
-                    <div className="relative h-40 md:h-48 overflow-hidden">
-                      <img
-                        src={typeof photo.url === 'string' && photo.url.includes('http') ? photo.url : `https://app.grapesjs.com/api/assets/random-image?query=${photo.url}&w=400&h=300`}
-                        alt={photo.caption}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-3 md:p-4">
-                      <p className="text-gray-700 font-medium text-sm md:text-base">{photo.caption}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+  {memories.photos.map((photo, index) => (
+    <div
+      key={photo.id}
+      className="memory-photo-card bg-white rounded-xl md:rounded-2xl shadow-lg overflow-hidden floating-card"
+    >
+      {/* Square container with responsive aspect ratio */}
+      <div className="relative aspect-square overflow-hidden bg-gray-100">
+        <img
+          src={
+            typeof photo.url === 'string' && photo.url.includes('http')
+              ? photo.url
+              : `https://app.grapesjs.com/api/assets/random-image?query=${photo.url}&w=400&h=400`
+          }
+          alt={photo.caption}
+          className="w-full h-full object-contain" // Shows full image, no crop
+        />
+        {editMode && (
+          <>
+            <div className="absolute top-2 right-2">
+              <label className="bg-blue-500 text-white p-1 rounded text-xs cursor-pointer floating-button">
+                Replace
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(e, 'memories', index, 'photos')}
+                  accept="image/*"
+                />
+              </label>
+            </div>
+            <div className="absolute top-2 left-2">
+              <button
+                onClick={() => removeItem('memories', index, 'photos')}
+                className="bg-red-500 text-white p-1 rounded text-xs floating-button"
+              >
+                Remove
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <div className="p-3 md:p-4">
+        {editMode ? (
+          <input
+            type="text"
+            value={photo.caption}
+            onChange={(e) =>
+              handleTextChange('memories', 'caption', e.target.value, index, 'photos')
+            }
+            className="w-full border-b border-dashed border-rose-300 floating-input text-sm md:text-base"
+            placeholder="Caption"
+          />
+        ) : (
+          <p className="text-gray-700 font-medium text-sm md:text-base">{photo.caption}</p>
+        )}
+      </div>
+    </div>
+  ))}
+</div>
             )}
             
             {activeMemoryTab === 'songs' && (
               <div className="memory-songs grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {memories.songs.map((song, index) => (
                   <div key={song.id} className="memory-song-card bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 floating-card">
-                    <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{song.title}</h3>
-                    <p className="text-gray-600 mb-3 floating-text text-sm md:text-base">{song.artist}</p>
-                    <p className="text-gray-700 floating-text text-sm md:text-base">{song.caption}</p>
+                    {editMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={song.title}
+                          onChange={(e) => handleTextChange('memories', 'title', e.target.value, index, 'songs')}
+                          className="text-lg md:text-xl font-semibold text-rose-800 mb-2 w-full border-b border-dashed border-rose-300 floating-input"
+                          placeholder="Song title"
+                        />
+                        <input
+                          type="text"
+                          value={song.artist}
+                          onChange={(e) => handleTextChange('memories', 'artist', e.target.value, index, 'songs')}
+                          className="text-gray-600 mb-3 w-full border-b border-dashed border-rose-200 floating-input text-sm md:text-base"
+                          placeholder="Artist"
+                        />
+                        <textarea
+                          value={song.caption}
+                          onChange={(e) => handleTextChange('memories', 'caption', e.target.value, index, 'songs')}
+                          className="text-gray-700 w-full border border-dashed border-rose-200 p-2 rounded floating-input text-sm"
+                          rows="2"
+                          placeholder="Why this song is special"
+                        />
+                        <button 
+                          onClick={() => removeItem('memories', index, 'songs')}
+                          className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{song.title}</h3>
+                        <p className="text-gray-600 mb-3 floating-text text-sm md:text-base">{song.artist}</p>
+                        <p className="text-gray-700 floating-text text-sm md:text-base">{song.caption}</p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -636,8 +1304,35 @@ const App = () => {
               <div className="memory-places grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {memories.places.map((place, index) => (
                   <div key={place.id} className="memory-place-card bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 floating-card">
-                    <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{place.name}</h3>
-                    <p className="text-gray-700 floating-text text-sm md:text-base">{place.description}</p>
+                    {editMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={place.name}
+                          onChange={(e) => handleTextChange('memories', 'name', e.target.value, index, 'places')}
+                          className="text-lg md:text-xl font-semibold text-rose-800 mb-2 w-full border-b border-dashed border-rose-300 floating-input"
+                          placeholder="Place name"
+                        />
+                        <textarea
+                          value={place.description}
+                          onChange={(e) => handleTextChange('memories', 'description', e.target.value, index, 'places')}
+                          className="text-gray-700 w-full border border-dashed border-rose-200 p-2 rounded floating-input text-sm"
+                          rows="2"
+                          placeholder="Why this place is special"
+                        />
+                        <button 
+                          onClick={() => removeItem('memories', index, 'places')}
+                          className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{place.name}</h3>
+                        <p className="text-gray-700 floating-text text-sm md:text-base">{place.description}</p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -647,9 +1342,43 @@ const App = () => {
               <div className="memory-dates grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {memories.dates.map((date, index) => (
                   <div key={date.id} className="memory-date-card bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 floating-card">
-                    <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{date.title}</h3>
-                    <p className="text-gray-600 mb-3 floating-text text-sm md:text-base">{date.date}</p>
-                    <p className="text-gray-700 floating-text text-sm md:text-base">{date.description}</p>
+                    {editMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={date.title}
+                          onChange={(e) => handleTextChange('memories', 'title', e.target.value, index, 'dates')}
+                          className="text-lg md:text-xl font-semibold text-rose-800 mb-2 w-full border-b border-dashed border-rose-300 floating-input"
+                          placeholder="Date title"
+                        />
+                        <input
+                          type="text"
+                          value={date.date}
+                          onChange={(e) => handleTextChange('memories', 'date', e.target.value, index, 'dates')}
+                          className="text-gray-600 mb-3 w-full border-b border-dashed border-rose-200 floating-input text-sm md:text-base"
+                          placeholder="Date"
+                        />
+                        <textarea
+                          value={date.description}
+                          onChange={(e) => handleTextChange('memories', 'description', e.target.value, index, 'dates')}
+                          className="text-gray-700 w-full border border-dashed border-rose-200 p-2 rounded floating-input text-sm"
+                          rows="2"
+                          placeholder="Why this date is special"
+                        />
+                        <button 
+                          onClick={() => removeItem('memories', index, 'dates')}
+                          className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{date.title}</h3>
+                        <p className="text-gray-600 mb-3 floating-text text-sm md:text-base">{date.date}</p>
+                        <p className="text-gray-700 floating-text text-sm md:text-base">{date.description}</p>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -661,9 +1390,20 @@ const App = () => {
       {/* Love Notes Section */}
       <section id="love-notes" className="love-notes-section py-16 md:py-20 bg-white">
         <div className="love-notes-container max-w-4xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 love-notes-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-10 md:mb-12 floating-title">
+          <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
             Love Notes
           </h2>
+          
+          {editMode && (
+            <div className="flex justify-center mb-6">
+              <button 
+                onClick={() => addNewItem('loveNotes')}
+                className="px-4 py-2 bg-rose-500 text-white rounded-full flex items-center floating-button"
+              >
+                <span>Add New Note</span>
+              </button>
+            </div>
+          )}
           
           <div className="love-notes-grid grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             {loveNotes.map((note, index) => (
@@ -672,168 +1412,273 @@ const App = () => {
                   ❤️
                 </div>
                 
-                <p className="text-gray-700 mb-4 italic floating-text text-sm md:text-base">"{note.content}"</p>
-                <p className="text-sm text-rose-600 floating-text">{note.date}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Future Plans Section */}
-      <section id="future-plans" className="future-plans-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
-        <div className="future-plans-container max-w-4xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 future-plans-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-10 md:mb-12 floating-title">
-            Our Future Together
-          </h2>
-          
-          <div className="future-plans-grid grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            {futurePlans.map((plan, index) => (
-              <div key={plan.id} className="future-plan-card bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 floating-card">
-                <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{plan.title}</h3>
-                <p className="text-gray-700 floating-text text-sm md:text-base">{plan.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Messages Section */}
-      <section id="messages" className="messages-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
-        <div className="messages-container max-w-4xl mx-auto px-4 md:px-6">
-          <h2 className="gjs-t-h1 messages-title text-3xl md:text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-8 md:mb-10 floating-title">
-            Messages Between Kinza & Zain
-          </h2>
-          
-          <div className="chat-container bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden floating-card">
-            {/* Chat Header */}
-            <div className="chat-header bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="relative">
-                  <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3 floating-avatar">
-                    K
+                {editMode ? (
+                  <>
+                    <textarea
+                      value={note.content}
+                      onChange={(e) => handleTextChange('loveNotes', 'content', e.target.value, index)}
+                      className="text-gray-700 mb-4 w-full bg-transparent border-b border-dashed border-rose-300 floating-input text-sm md:text-base"
+                      rows="3"
+                      placeholder="Your love note"
+                    />
+                    <input
+                      type="text"
+                      value={note.date}
+                      onChange={(e) => handleTextChange('loveNotes', 'date', e.target.value, index)}
+                      className="text-sm text-rose-600 w-full bg-transparent border-b border-dashed border-rose-200 floating-input"
+                      placeholder="Date"
+                    />
+                    <button 
+                      onClick={() => removeItem('loveNotes', index)}
+                      className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                    >
+                      Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-gray-700 mb-4 italic floating-text text-sm md:text-base">"{note.content}"</p>
+                        <p className="text-sm text-rose-600 floating-text">{note.date}</p>
+                      </>
+                    )}
                   </div>
-                  <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
-                </div>
-                <div className="relative ml-1 md:ml-2">
-                  <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl floating-avatar">
-                    Z
-                  </div>
-                  <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
-                </div>
-                <div className="ml-2 md:ml-4">
-                  <h3 className="font-semibold text-sm md:text-base">Kinza & Zain</h3>
-                  <p className="text-rose-100 text-xs md:text-sm">Online now</p>
-                </div>
-              </div>
-              <div className="flex space-x-1 md:space-x-2">
-                <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                </button>
-                <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
+                ))}
               </div>
             </div>
-            
-            {/* Messages Area */}
-            <div className="messages-area p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
-              {websiteData.messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`message flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {message.sender === 'kinza' && (
-                    <div className="sender-avatar w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm md:text-base mr-2 flex-shrink-0 floating-avatar">
-                      K
-                    </div>
-                  )}
-                  
-                  <div className={`message-content max-w-xs ${message.sender === 'zain' ? 'bg-indigo-100' : 'bg-rose-100'} rounded-xl md:rounded-2xl p-2 md:p-3 ${message.sender === 'zain' ? 'rounded-tr-none' : 'rounded-tl-none'} floating-message`}>
-                    <p className="text-gray-800 text-sm md:text-base">{message.text}</p>
-                    <p className="text-xs text-gray-500 mt-1 text-right">
-                      {message.timestamp?.toDate ? message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : message.timestamp}
-                    </p>
+          </section>
+
+          {/* Future Plans Section */}
+          <section id="future-plans" className="future-plans-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
+            <div className="future-plans-container max-w-4xl mx-auto px-4 md:px-6">
+              <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
+                Our Future Together
+              </h2>
+              
+              {editMode && (
+                <div className="flex justify-center mb-6">
+                  <button 
+                    onClick={() => addNewItem('futurePlans')}
+                    className="px-4 py-2 bg-rose-500 text-white rounded-full flex items-center floating-button"
+                  >
+                    <span>Add New Plan</span>
+                  </button>
+                </div>
+              )}
+              
+              <div className="future-plans-grid grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                {futurePlans.map((plan, index) => (
+                  <div key={plan.id} className="future-plan-card bg-white rounded-xl md:rounded-2xl shadow-lg p-4 md:p-6 floating-card">
+                    {editMode ? (
+                      <>
+                        <input
+                          type="text"
+                          value={plan.title}
+                          onChange={(e) => handleTextChange('futurePlans', 'title', e.target.value, index)}
+                          className="text-lg md:text-xl font-semibold text-rose-800 mb-2 w-full border-b border-dashed border-rose-300 floating-input"
+                          placeholder="Plan title"
+                        />
+                        <textarea
+                          value={plan.description}
+                          onChange={(e) => handleTextChange('futurePlans', 'description', e.target.value, index)}
+                          className="text-gray-700 w-full border border-dashed border-rose-200 p-2 rounded floating-input text-sm"
+                          rows="2"
+                          placeholder="Plan description"
+                        />
+                        <button 
+                          onClick={() => removeItem('futurePlans', index)}
+                          className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded floating-button"
+                        >
+                          Remove
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <h3 className="text-lg md:text-xl font-semibold text-rose-800 mb-2 floating-text">{plan.title}</h3>
+                        <p className="text-gray-700 floating-text text-sm md:text-base">{plan.description}</p>
+                      </>
+                    )}
                   </div>
-                  
-                  {message.sender === 'zain' && (
-                    <div className="sender-avatar w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm md:text-base ml-2 flex-shrink-0 floating-avatar">
-                      Z
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+                ))}
+              </div>
             </div>
-            
-            {/* Message Input */}
-            <div className="message-input-container p-3 md:p-4 border-t border-rose-100 bg-white">
-              <form onSubmit={handleSendMessage} className="flex items-center">
-                <div className="sender-toggle flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
-                  <button
-                    type="button"
-                    className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${currentSender === 'zain' ? 'bg-indigo-500 text-white' : 'text-indigo-500'} floating-button`}
-                    onClick={() => setCurrentSender('zain')}
-                  >
-                    Zain
-                  </button>
-                  <button
-                    type="button"
-                    className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${currentSender === 'kinza' ? 'bg-rose-500 text-white' : 'text-rose-500'} floating-button`}
-                    onClick={() => setCurrentSender('kinza')}
-                  >
-                    Kinza
-                  </button>
-                </div>
-                
+          </section>
+
+          {/* Messages Section */}
+          <section id="messages" className="messages-section py-16 md:py-20 bg-gradient-to-br from-rose-50/30 to-indigo-50/30">
+  <div className="messages-container max-w-4xl mx-auto px-4 md:px-6">
+    <h2 className="about-title !text-2xl sm:!text-3xl md:!text-2xl lg:!text-3xl xl:!text-4xl font-bold text-center bg-gradient-to-r from-rose-700 to-purple-700 bg-clip-text text-transparent mb-4 sm:mb-6 md:mb-10 lg:mb-14 animate-fade-in floating-title">
+      Messages Between Kinza & Zain
+    </h2>
+
+    <div className="chat-container bg-white rounded-xl md:rounded-2xl shadow-lg border border-rose-100 overflow-hidden floating-card">
+      {/* Chat Header */}
+      <div className="chat-header bg-gradient-to-r from-rose-600 to-purple-600 p-3 md:p-4 text-white flex items-center justify-between">
+        <div className="flex items-center">
+          <div className="relative">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-rose-500 flex items-center justify-center text-white font-bold text-lg md:text-xl mr-2 md:mr-3 floating-avatar">
+              K
+            </div>
+            <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
+          </div>
+          <div className="relative ml-1 md:ml-2">
+            <div className="w-8 h-8 md:w-12 md:h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-lg md:text-xl floating-avatar">
+              Z
+            </div>
+            <div className="w-3 h-3 md:w-5 md:h-5 rounded-full bg-green-400 border-2 border-white absolute bottom-0 right-0 md:right-2"></div>
+          </div>
+          <div className="ml-2 md:ml-4">
+            <h3 className="font-semibold text-sm md:text-base">Kinza & Zain</h3>
+            <p className="text-rose-100 text-xs md:text-sm">Online now</p>
+          </div>
+        </div>
+        <div className="flex space-x-1 md:space-x-2">
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+          </button>
+          <button className="p-1 md:p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 transition-all duration-300 floating-button">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Area */}
+      <div className="messages-area p-3 md:p-4 h-80 md:h-96 overflow-y-auto bg-rose-50/30">
+        {websiteData.messages.map((message) => (
+          <div
+            key={message.id}
+            className={`message flex mb-3 md:mb-4 ${message.sender === 'zain' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`message-content max-w-xs ${
+                message.sender === 'zain' ? 'bg-indigo-100' : 'bg-rose-100'
+              } rounded-xl md:rounded-2xl p-2 md:p-3 relative floating-message`}
+              style={{ paddingLeft: '2rem', paddingRight: '2rem' }}
+            >
+              {/* Tiny sender badge (K or Z) */}
+              <div
+                className={`absolute top-1.5 font-bold text-xs rounded-full flex items-center justify-center shadow-sm
+                  ${message.sender === 'kinza'
+                    ? 'left-1.5 bg-gradient-to-br from-rose-400 to-pink-500 text-white'
+                    : 'right-1.5 bg-gradient-to-br from-indigo-400 to-blue-500 text-white'
+                  }
+                  w-5 h-5 md:w-6 md:h-6 transition-all duration-200 hover:scale-110`}
+                style={{ fontSize: '0.65rem', lineHeight: '1' }}
+              >
+                {message.sender === 'kinza' ? 'K' : 'Z'}
+              </div>
+
+              {/* Message Text */}
+              {editMode ? (
                 <input
                   type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent floating-input text-sm md:text-base"
+                  value={message.text}
+                  onChange={(e) => {
+                    const newMessages = websiteData.messages.map(m =>
+                      m.id === message.id ? { ...m, text: e.target.value } : m
+                    );
+                    handleTextChange('messages', '', newMessages);
+                  }}
+                  className="w-full bg-transparent border-b border-dashed border-gray-400 floating-input text-sm md:text-base focus:border-gray-500 outline-none"
                 />
-                
-                <button
-                  type="submit"
-                  className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300 floating-button"
-                >
-                  <PaperAirplaneIcon className="w-4 h-4 md:w-5 md:h-5" />
-                </button>
-              </form>
+              ) : (
+                <p className="text-gray-800 text-sm md:text-base">{message.text}</p>
+              )}
+
+              {/* Timestamp */}
+              <p className="text-xs text-gray-500 mt-1 text-right">
+                {message.timestamp?.toDate
+                  ? message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : message.timestamp}
+              </p>
             </div>
           </div>
-        </div>
-      </section>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
 
-      {/* Footer */}
-      {/* <footer className="footer bg-gradient-to-r from-rose-900 to-purple-900 text-white py-10 md:py-12">
-        <div className="footer-container max-w-4xl mx-auto px-4 md:px-6 text-center">
-          <div className="footer-hearts mb-4 md:mb-6 flex justify-center">
-            <svg width="40" height="40" md:width="50" md:height="50" viewBox="0 0 100 100" className="footer-heart animate-pulse floating-icon">
-              <path
-                d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z"
-                fill="#fff"
-                opacity="0.8"
-              ></path>
-            </svg>
+      {/* Message Input */}
+      <div className="message-input-container p-3 md:p-4 border-t border-rose-100 bg-white">
+        <form onSubmit={handleSendMessage} className="flex items-center">
+          <div className="sender-toggle flex bg-rose-50 rounded-lg p-1 mr-2 md:mr-3">
+            <button
+              type="button"
+              className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
+                currentSender === 'zain' ? 'bg-indigo-500 text-white' : 'text-indigo-500'
+              } transition-colors duration-200 floating-button`}
+              onClick={() => setCurrentSender('zain')}
+            >
+              Zain
+            </button>
+            <button
+              type="button"
+              className={`p-1 md:p-2 rounded-md text-xs md:text-sm font-medium ${
+                currentSender === 'kinza' ? 'bg-rose-500 text-white' : 'text-rose-500'
+              } transition-colors duration-200 floating-button`}
+              onClick={() => setCurrentSender('kinza')}
+            >
+              Kinza
+            </button>
           </div>
-          <p className="footer-copyright text-base md:text-lg opacity-90 floating-text">
-            © 2024 Kinza & Zain. Made with Love.
-          </p>
-          <div className="footer-links mt-4 md:mt-6 space-x-4 md:space-x-6">
-            <a href="#" className="instagram-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Instagram</a>
-            <a href="#" className="facebook-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Facebook</a>
-            <a href="#" className="twitter-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Twitter</a>
-          </div>
-        </div>
-      </footer> */}
+
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 border border-gray-300 rounded-full py-1 md:py-2 px-3 md:px-4 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent floating-input text-sm md:text-base"
+          />
+
+          <button
+            type="submit"
+            className="ml-2 md:ml-3 p-2 md:p-3 bg-gradient-to-r from-rose-600 to-purple-600 text-white rounded-full hover:shadow-lg transform hover:scale-105 transition-all duration-300 floating-button"
+          >
+            <PaperAirplaneIcon className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+        </form>
+      </div>
     </div>
-  );
-};
+  </div>
+</section>
+          {/* Footer */}
+          {/* <footer className="footer bg-gradient-to-r from-rose-900 to-purple-900 text-white py-10 md:py-12">
+            <div className="footer-container max-w-4xl mx-auto px-4 md:px-6 text-center">
+              <div className="footer-hearts mb-4 md:mb-6 flex justify-center">
+                <svg width="40" height="40" md:width="50" md:height="50" viewBox="0 0 100 100" className="footer-heart animate-pulse floating-icon">
+                  <path
+                    d="M50,25 C30,0 0,15 0,40 C0,55 50,90 50,90 C50,90 100,55 100,40 C100,15 70,0 50,25 Z"
+                    fill="#fff"
+                    opacity="0.8"
+                  ></path>
+                </svg>
+              </div>
+              <p className="footer-copyright text-base md:text-lg opacity-90 floating-text">
+                © 2024 Kinza & Zain. Made with Love.
+              </p>
+              <div className="footer-links mt-4 md:mt-6 space-x-4 md:space-x-6">
+                <a href="#" className="instagram-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Instagram</a>
+                <a href="#" className="facebook-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Facebook</a>
+                <a href="#" className="twitter-link hover:text-rose-300 transition-all duration-300 floating-text text-sm md:text-base">Twitter</a>
+              </div>
+            </div>
+          </footer> */}
 
-export default App;
+          {/* Save Button in Edit Mode */}
+          {editMode && (
+            <div className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50">
+              <button
+                onClick={saveWebsiteData}
+                className="px-4 py-2 md:px-6 md:py-3 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition-all duration-300 flex items-center floating-button text-sm md:text-base"
+              >
+                <span>Save Changes</span>
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    export default App;
